@@ -71,10 +71,21 @@ jobs:
         target: google_apis
         arch: x86_64
         profile: pixel_7
+        emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot -wipe-data
         script: |
           echo "=== Setting up environment ==="
           export ANDROID_HOME=$ANDROID_SDK_ROOT
           export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+          
+          echo "=== Waiting for emulator to be fully ready ==="
+          # Wait for emulator to be online and booted
+          echo "Waiting for emulator to come online..."
+          timeout 300 bash -c 'until adb devices | grep -q "emulator-5554.*device"; do sleep 5; done'
+          
+          echo "Waiting for emulator to finish booting..."
+          timeout 300 bash -c 'until adb shell getprop sys.boot_completed | grep -q "1"; do sleep 5; done'
+          
+          echo "Emulator is ready!"
           
           echo "=== Installing APK ==="
           # Check for APK file with correct name
@@ -99,10 +110,10 @@ jobs:
           echo "=== Starting Appium Server ==="
           appium --port 4723 --log-level info &
           APPIUM_PID=$!
-          sleep 15
+          sleep 20
           
           echo "=== Verifying Appium connection ==="
-          curl -f http://localhost:4723/status || (echo "Appium server not responding" && exit 1)
+          timeout 60 bash -c 'until curl -f http://localhost:4723/status; do sleep 5; done'
           
           echo "=== Running CI Verification Tests ==="
           robot --outputdir results --include "CI" tests/CI_Verification.robot

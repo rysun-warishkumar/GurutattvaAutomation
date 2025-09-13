@@ -45,19 +45,11 @@ Wait For Emulator Ready
     ${is_ci}=    Run Keyword And Return Status    Get Environment Variable    CI    default=False
     
     IF    ${is_ci}
-        Log To Console    Waiting for emulator to be ready...
-        FOR    ${i}    IN RANGE    30
-            ${boot_completed}=    Run    adb shell getprop sys.boot_completed
-            ${boot_completed}=    Strip String    ${boot_completed}
-            Exit For Loop If    '${boot_completed}' == '1'
-            Sleep    2s
-        END
-        
-        ${boot_completed}=    Run    adb shell getprop sys.boot_completed
-        ${boot_completed}=    Strip String    ${boot_completed}
-        Should Be Equal    ${boot_completed}    1    Emulator failed to boot properly
-        
-        Log To Console    Emulator is ready!
+        Log To Console    Emulator should already be ready from workflow setup
+        # Just verify the emulator is accessible
+        ${device_info}=    Run    adb devices
+        Log To Console    Device status: ${device_info}
+        Should Contain    ${device_info}    emulator-5554    Emulator not found in device list
     END
 
 Verify Appium Connection
