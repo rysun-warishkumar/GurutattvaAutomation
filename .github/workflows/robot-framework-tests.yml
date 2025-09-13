@@ -56,13 +56,13 @@ jobs:
     - name: Install Android SDK components
       run: |
         echo "y" | sdkmanager --licenses
-        echo "y" | sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-        echo "y" | sdkmanager "system-images;android-34;google_apis;x86_64"
+        echo "y" | sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+        echo "y" | sdkmanager "system-images;android-30;google_apis;x86_64"
         echo "y" | sdkmanager "emulator"
         
     - name: Create AVD
       run: |
-        echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-34;google_apis;x86_64" -d "pixel_7" --force
+        echo "no" | avdmanager create avd -n Pixel_4_2 -k "system-images;android-30;google_apis;x86_64" -d "pixel_4" --force
         
     - name: Start emulator manually
       run: |
@@ -71,7 +71,7 @@ jobs:
         export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
         
         # Start emulator in background
-        $ANDROID_HOME/emulator/emulator -avd test_emulator -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot -wipe-data -memory 2048 -cores 2 -no-metrics &
+        $ANDROID_HOME/emulator/emulator -avd Pixel_4_2 -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot -wipe-data -memory 2048 -cores 2 -no-metrics &
         EMULATOR_PID=$!
         echo "Emulator PID: $EMULATOR_PID"
         
