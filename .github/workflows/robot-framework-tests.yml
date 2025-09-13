@@ -64,68 +64,81 @@ jobs:
       run: |
         echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-34;google_apis;x86_64" -d "pixel_7" --force
         
-    - name: Start emulator and run tests
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: 34
-        target: google_apis
-        arch: x86_64
-        profile: pixel_7
-        emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot -wipe-data
-        script: |
-          echo "=== Setting up environment ==="
-          export ANDROID_HOME=$ANDROID_SDK_ROOT
-          export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
-          
-          echo "=== Waiting for emulator to be fully ready ==="
-          # Wait for emulator to be online and booted
-          echo "Waiting for emulator to come online..."
-          timeout 300 bash -c 'until adb devices | grep -q "emulator-5554.*device"; do sleep 5; done'
-          
-          echo "Waiting for emulator to finish booting..."
-          timeout 300 bash -c 'until adb shell getprop sys.boot_completed | grep -q "1"; do sleep 5; done'
-          
-          echo "Emulator is ready!"
-          
-          echo "=== Installing APK ==="
-          # Check for APK file with correct name
-          if [ -f "./automation_dhyan_9thSept 1.apk" ]; then
-            echo "Installing APK: automation_dhyan_9thSept 1.apk"
-            adb install -r "./automation_dhyan_9thSept 1.apk"
-            echo "APK installed successfully"
-          elif [ -f "./automation_dhyan_9thSept.apk" ]; then
-            echo "Installing APK: automation_dhyan_9thSept.apk"
-            adb install -r "./automation_dhyan_9thSept.apk"
-            echo "APK installed successfully"
-          else
-            echo "APK file not found, listing files:"
-            ls -la *.apk || echo "No APK files found"
-            exit 1
-          fi
-          
-          echo "=== Installing Appium ==="
-          npm install -g appium@latest
-          appium driver install uiautomator2
-          
-          echo "=== Starting Appium Server ==="
-          appium --port 4723 --log-level info &
-          APPIUM_PID=$!
-          sleep 20
-          
-          echo "=== Verifying Appium connection ==="
-          timeout 60 bash -c 'until curl -f http://localhost:4723/status; do sleep 5; done'
-          
-          echo "=== Running CI Verification Tests ==="
-          robot --outputdir results --include "CI" tests/CI_Verification.robot
-          
-          echo "=== Running Fixed Setup Tests ==="
-          robot --outputdir results --include "FixedSetup" tests/Test_Fixed_Setup.robot
-          
-          echo "=== Running Robot Framework Tests ==="
-          robot --outputdir results --include "WarishTest" tests/
-          
-          echo "=== Stopping Appium ==="
-          kill $APPIUM_PID || true
+    - name: Start emulator manually
+      run: |
+        echo "=== Starting emulator manually ==="
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+        
+        # Start emulator in background
+        $ANDROID_HOME/emulator/emulator -avd test_emulator -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot -wipe-data -memory 2048 -cores 2 -no-metrics &
+        EMULATOR_PID=$!
+        echo "Emulator PID: $EMULATOR_PID"
+        
+        # Wait for emulator to be ready
+        echo "Waiting for emulator to be ready..."
+        timeout 600 bash -c 'until adb devices | grep -q "emulator-5554.*device"; do sleep 10; echo "Waiting for device..."; done'
+        
+        echo "Waiting for boot completion..."
+        timeout 600 bash -c 'until adb shell getprop sys.boot_completed | grep -q "1"; do sleep 10; echo "Waiting for boot..."; done'
+        
+        echo "Emulator is ready!"
+        
+    - name: Install APK and run tests
+      run: |
+        echo "=== Installing APK ==="
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+        
+        # Check for APK file with correct name
+        if [ -f "./automation_dhyan_9thSept 1.apk" ]; then
+          echo "Installing APK: automation_dhyan_9thSept 1.apk"
+          adb install -r "./automation_dhyan_9thSept 1.apk"
+          echo "APK installed successfully"
+        elif [ -f "./automation_dhyan_9thSept.apk" ]; then
+          echo "Installing APK: automation_dhyan_9thSept.apk"
+          adb install -r "./automation_dhyan_9thSept.apk"
+          echo "APK installed successfully"
+        else
+          echo "APK file not found, listing files:"
+          ls -la *.apk || echo "No APK files found"
+          exit 1
+        fi
+        
+        echo "=== Installing Appium ==="
+        npm install -g appium@latest
+        appium driver install uiautomator2
+        
+        echo "=== Starting Appium Server ==="
+        appium --port 4723 --log-level info &
+        APPIUM_PID=$!
+        sleep 20
+        
+        echo "=== Verifying Appium connection ==="
+        timeout 60 bash -c 'until curl -f http://localhost:4723/status; do sleep 5; done'
+        
+        echo "=== Running CI Verification Tests ==="
+        robot --outputdir results --include "CI" tests/CI_Verification.robot
+        
+        echo "=== Running Fixed Setup Tests ==="
+        robot --outputdir results --include "FixedSetup" tests/Test_Fixed_Setup.robot
+        
+        echo "=== Running Robot Framework Tests ==="
+        robot --outputdir results --include "WarishTest" tests/
+        
+        echo "=== Stopping Appium ==="
+        kill $APPIUM_PID || true
+        
+    - name: Stop emulator
+      if: always()
+      run: |
+        echo "=== Stopping emulator ==="
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+        
+        # Kill emulator process
+        pkill -f emulator || true
+        adb emu kill || true
           
     - name: Upload test results
       uses: actions/upload-artifact@v4
