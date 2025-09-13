@@ -1,0 +1,108 @@
+name: Android Emulator Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-emulator:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Cache Android SDK
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.android/cache
+          ~/.gradle/caches
+        key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-android-sdk-
+          
+    - name: Install system images
+      run: |
+        echo "y" | sdkmanager "system-images;android-34;google_apis;x86_64"
+        echo "y" | sdkmanager "system-images;android-33;google_apis;x86_64"
+        echo "y" | sdkmanager "system-images;android-30;google_apis;x86_64"
+        
+    - name: Create AVD
+      run: |
+        echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-34;google_apis;x86_64" -d "pixel_7" --force
+        
+    - name: Start emulator
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 34
+        target: google_apis
+        arch: x86_64
+        profile: pixel_7
+        script: |
+          echo "=== Environment Setup ==="
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+          echo "JAVA_HOME: $JAVA_HOME"
+          
+          echo "=== Android SDK Verification ==="
+          if [ -d "$ANDROID_HOME" ]; then
+            echo "✅ Android SDK found at: $ANDROID_HOME"
+            echo "SDK Contents:"
+            ls -la $ANDROID_HOME/
+          else
+            echo "❌ Android SDK not found at: $ANDROID_HOME"
+            exit 1
+          fi
+          
+          echo "=== Available Tools ==="
+          echo "ADB version:"
+          adb version || echo "❌ ADB not found"
+          echo "Emulator version:"
+          emulator -version || echo "❌ Emulator not found"
+          echo "AVD Manager:"
+          avdmanager --version || echo "❌ AVD Manager not found"
+          
+          echo "=== Available System Images ==="
+          sdkmanager --list | grep "system-images" | head -10 || echo "❌ No system images found"
+          
+          echo "=== Existing AVDs ==="
+          avdmanager list avd || echo "❌ No AVDs found"
+          
+          echo "=== ADB Devices ==="
+          adb devices
+          
+          echo "=== Emulator Status ==="
+          if adb devices | grep -q "emulator.*device"; then
+            echo "🎉 SUCCESS: Emulator is ready!"
+            echo "Android Version:"
+            adb shell getprop ro.build.version.release
+            echo "Device Model:"
+            adb shell getprop ro.product.model
+            echo "Device Serial:"
+            adb shell getprop ro.serialno
+          else
+            echo "❌ FAILED: Emulator is not ready"
+            echo "ADB Devices:"
+            adb devices
+          fi
+          
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: emulator-test-results
+        path: |
+          ${{ github.workspace }}/test-results/
+        retention-days: 30
