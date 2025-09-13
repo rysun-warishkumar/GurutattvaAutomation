@@ -14,6 +14,11 @@ Open Gurutattva App
     ...    appActivity=${APP_ACTIVITY}
     ...    automationName=${AUTOMATION_NAME}
     ...    noReset=${NO_RESET}
+    ...    newCommandTimeout=${NEW_COMMAND_TIMEOUT}
+    ...    autoGrantPermissions=${AUTO_GRANT_PERMISSIONS}
+    ...    autoAcceptAlerts=${AUTO_ACCEPT_ALERTS}
+    ...    skipServerInstallation=true
+    ...    skipDeviceInitialization=true
     Sleep    10s
 
 Close Gurutattva App

@@ -3,8 +3,6 @@
 Library    AppiumLibrary    WITH NAME    Mobile
 Library    SeleniumLibrary    WITH NAME    Web
 Library    OperatingSystem
-Library    AppiumLibrary    run_on_failure=No Operation
-Library    SeleniumLibrary    run_on_failure=No Operation
 
 *** Keywords ***
 # Mobile-specific keywords
@@ -71,6 +69,10 @@ Mobile Open Application
 
 Mobile Close Application
     Mobile.Close Application
+
+Mobile Terminate Application
+    [Arguments]    ${app_package}
+    Mobile.Terminate Application    ${app_package}
 
 
 

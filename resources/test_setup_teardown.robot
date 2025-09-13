@@ -1,6 +1,8 @@
 *** Settings ***
 Resource   libraries.robot
 Resource   keywords.robot
+Resource   ci_variables.robot
+Resource   test_configuration.robot
 Library   DateTime
 Library   String
 
@@ -11,18 +13,30 @@ ${SCREENSHOT_DIR}    ${EXECDIR}/results/Screenshot
 Test Setup
     [Documentation]    Setup for each test case - ensures clean state
     Log To Console    ===== Starting Test Setup =====
-    Web.Register Keyword To Run On Failure    No Operation
-    Mobile.Register Keyword To Run On Failure    No Operation
+    
+    # Setup test based on type (mobile/web)
+    Setup Test Based On Type
+    
     # Kill any existing app instances
     Run Keyword And Ignore Error    Mobile Terminate Application    ${APP_PACKAGE}
     Sleep    2s
+    
+    # Additional cleanup for CI
+    ${is_ci}=    Run Keyword And Return Status    Get Environment Variable    CI    default=False
+    Run Keyword If    ${is_ci}    Run Keyword And Ignore Error    Run    adb shell am force-stop ${APP_PACKAGE}
+    Run Keyword If    ${is_ci}    Sleep    3s
+    
     Log To Console    ===== Test Setup Completed =====
 
 Test Teardown
     [Documentation]    Teardown for each test case - ensures app is closed even on failure
     Log To Console    ===== Starting Test Teardown =====
+    
     # Capture screenshot on failure using explicit library calls to avoid conflicts
     Run Keyword If Test Failed    Take Screenshot On Failure    ${TEST NAME}
+    
+    # Teardown test based on type (mobile/web)
+    Teardown Test Based On Type
     
     # Always try to close the app, even if test failed
     Run Keyword And Ignore Error    Close Gurutattva App
@@ -40,6 +54,19 @@ Test Teardown
 Suite Setup
     [Documentation]    Setup for entire test suite
     Log To Console    ===== Starting Suite Setup =====
+    
+    # Check CI environment and log information
+    Check CI Environment
+    
+    # Initialize CI variables if needed
+    Get CI Variables
+    
+    # Wait for emulator to be ready in CI
+    Wait For Emulator Ready
+    
+    # Verify Appium connection in CI
+    Verify Appium Connection
+    
     # Kill any existing app instances
     Run Keyword And Ignore Error    Mobile Terminate Application    ${APP_PACKAGE}
     Sleep    3s

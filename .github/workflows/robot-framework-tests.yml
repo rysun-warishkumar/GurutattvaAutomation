@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
 
 jobs:
   mobile-tests:
@@ -18,6 +21,12 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
         
     - name: Install Python dependencies
       run: |
@@ -39,13 +48,17 @@ jobs:
         path: |
           ~/.android/cache
           ~/.gradle/caches
+          ~/.android/avd
         key: ${{ runner.os }}-android-sdk-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-android-sdk-
           
-    - name: Install system images
+    - name: Install Android SDK components
       run: |
+        echo "y" | sdkmanager --licenses
+        echo "y" | sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
         echo "y" | sdkmanager "system-images;android-34;google_apis;x86_64"
+        echo "y" | sdkmanager "emulator"
         
     - name: Create AVD
       run: |
@@ -59,23 +72,49 @@ jobs:
         arch: x86_64
         profile: pixel_7
         script: |
+          echo "=== Setting up environment ==="
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+          
           echo "=== Installing APK ==="
-          if [ -f "./automation_dhyan_9thSept.apk" ]; then
-            echo "Installing APK..."
-            adb install -r ./automation_dhyan_9thSept.apk
+          # Check for APK file with correct name
+          if [ -f "./automation_dhyan_9thSept 1.apk" ]; then
+            echo "Installing APK: automation_dhyan_9thSept 1.apk"
+            adb install -r "./automation_dhyan_9thSept 1.apk"
+            echo "APK installed successfully"
+          elif [ -f "./automation_dhyan_9thSept.apk" ]; then
+            echo "Installing APK: automation_dhyan_9thSept.apk"
+            adb install -r "./automation_dhyan_9thSept.apk"
             echo "APK installed successfully"
           else
-            echo "APK file not found, skipping installation"
+            echo "APK file not found, listing files:"
+            ls -la *.apk || echo "No APK files found"
+            exit 1
           fi
           
-          echo "=== Starting Appium ==="
+          echo "=== Installing Appium ==="
           npm install -g appium@latest
           appium driver install uiautomator2
-          appium --port 4723 &
-          sleep 10
+          
+          echo "=== Starting Appium Server ==="
+          appium --port 4723 --log-level info &
+          APPIUM_PID=$!
+          sleep 15
+          
+          echo "=== Verifying Appium connection ==="
+          curl -f http://localhost:4723/status || (echo "Appium server not responding" && exit 1)
+          
+          echo "=== Running CI Verification Tests ==="
+          robot --outputdir results --include "CI" tests/CI_Verification.robot
+          
+          echo "=== Running Fixed Setup Tests ==="
+          robot --outputdir results --include "FixedSetup" tests/Test_Fixed_Setup.robot
           
           echo "=== Running Robot Framework Tests ==="
           robot --outputdir results --include "WarishTest" tests/
+          
+          echo "=== Stopping Appium ==="
+          kill $APPIUM_PID || true
           
     - name: Upload test results
       uses: actions/upload-artifact@v4
