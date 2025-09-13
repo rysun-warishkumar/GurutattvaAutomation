@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual environment
+.venv/
+env/
+ENV/
+
+# VS Code
+.vscode/
+
+# Robot Framework
+output.xml
+log.html
+report.html
+*.png
+
+# OS files
+.DS_Store
+Thumbs.db
+
+test_sample.py
+
+# CI/CD
+# Azure DevOps specific files (if any)
+
+# Test Results
+results/
+*.log
+*.xml
+*.html
+
+# Temporary files
+*.tmp
+*.temp
